@@ -1,4 +1,6 @@
+from cgitb import reset
 from json import load
+from lib2to3.pgen2.token import LESS
 import string
 from tokenize import Double
 import numpy as np
@@ -7,6 +9,14 @@ import matplotlib.pyplot as plt
 from matplotlib import colors
 from matplotlib.ticker import PercentFormatter
 import sys
+import math 
+import seaborn as sns
+from scipy.stats import skew
+from scipy.signal import find_peaks ,peak_prominences ,argrelextrema,peak_widths
+import plotly.graph_objects as go
+
+ 
+time_list=[]
 
 def line_graph_plot(data):
     
@@ -14,6 +24,9 @@ def line_graph_plot(data):
     x ='Time  min:ss',y='GSR Value',
     figsize=(20,5),grid =True ,subplots=True ,color="green")
     plt.grid(color = 'purple')
+    plt.title("Skin Resistance vs Time ")
+    plt.xlabel("Time")
+    plt.ylabel("Skin Resistance = kΩ")
     plt.show()
 
 def histogram_plot(data):
@@ -23,7 +36,8 @@ def histogram_plot(data):
     n_bins = 20
     
     # Creating distribution
-    x = data['Time  min:ss']
+    #x = data['Time  min:ss']
+    x = data['Time_Seconds']
     y = data['GSR Value']
 
     legend = ['GSR Value Distribution']
@@ -120,14 +134,14 @@ def Statistical_Analysis(data):
     print ("Least frequent color=",least_frquent_color)
 
     data["GSR_diff"]= data["GSR Value"].diff()
-    print("Append GSR Diff =\n",data)
+    #print("Append GSR Diff =\n",data)
     data["GSR_diff"]=data["GSR_diff"].fillna(0)
     print("Replace NAN by 0= \n",data)
 
-    data["Time_diff"]= data["Time Seconds"].diff()
-    print("Append Time_Diff =\n",data,"\n")
-    data["Time_diff"]=data["Time_diff"].fillna(0)
-    print("Replace NAN by 0= \n", data,"\n")
+    #data["Time_diff"]= data["Time Seconds"].diff()
+    #print("Append Time_Diff =\n",data,"\n")
+    #data["Time_diff"]=data["Time_diff"].fillna(0)
+    #print("Replace NAN by 0= \n", data,"\n")
 
     data['GSR Mean-GSR Value'] = mean_gsr- data['GSR Value']
     print("\nDeviation From Mean = :\n", data)
@@ -137,7 +151,7 @@ def Statistical_Analysis(data):
     Load_wrt_Mean(mean_gsr,gsr_min)
     Load_wrt_Initial_GSR(gsr_min,gsr_start)
 
-    print("Description of data = \n",data.describe())
+    #print("Description of data = \n",data.describe())
     
 
 
@@ -154,20 +168,108 @@ def Load_wrt_Initial_GSR(Max_load,Initial_gsr):
     print('Load Score= ',load_score)
     print("Load Normalized score wrt Initial Load= ",load_score*100,"\n")
     
+
+def min_sec_to_Seconds(data):
+    gsr_time=data['Time  min:ss']
+    #print("GSR time =\n ",gsr_time)
+    for i in range(0,len(gsr_time)):
+        x=gsr_time[i]
+        min,sec=divmod(x,1)
+        #print(min,"",sec)
+        min_sec=min*60
+        #print(min_sec)
+        Total_sec=min_sec+(sec*100)
+        time_list.append(Total_sec)
+        #print(Total_sec)
+    data["Time_Seconds"]= time_list
+    data["Time_Diff"]=data["Time_Seconds"].diff()
+    #print("Append Time Diff =\n",data)
+    data["Time_Diff"]=data["Time_Diff"].fillna(0)
+    print("Replace NAN by 0= \n",data)
+    pass
+
+def  skewness_Kurtosis(data):
+    data.boxplot(by ='GSR_diff', column =['Time_Diff'], grid = False)
+    plt.show()
+    print("\n Correlation matrix = \n",data.corr())
+    result= data.drop(['Color'],axis=1) 
+    #print("HIIIII",result)
+    for i in result:
+        #print(i)
+        #print(skew(result[i]))
+        plt.figure()
+        sns.histplot(result[i],kde=True)
+        plt.show()
+        pass
+    result_skewness=data.skew(axis=0, skipna=True, level=None, numeric_only=True)   
+    print("\n Skewness measure = \n")
+    print(result_skewness)
+    result_kurtosis= data.kurtosis(skipna = True,numeric_only=True)
+    print("\n kurtosis measure =\n")
+    print(result_kurtosis)
+    pass
+
+def peaks_valleys(data):
+    time_series = data['GSR Value']
+    # Find local maxima and local minima
+    #peaks = find_peaks(time_series, threshold=0)[0]
+    peaks = argrelextrema(time_series.to_numpy(), np.greater) # local maxima
+    peaks = peaks[0]
+
+    valleys_ind = argrelextrema(time_series.to_numpy(), np.less) # Local minima
+    valleys_ind = valleys_ind[0]
     
+    plt.rcParams["figure.figsize"] = (20,5.5)
+    plt.plot(time_series,linewidth=2.5,color="black",label="raw GSR data(kΩ)")
+    plt.grid(color = 'purple')
+    plt.plot(peaks, time_series[peaks], 'o',markersize=10,linestyle='dashed',color='blue',markerfacecolor='red',label="Peak Resistance or local max or SCR") # For Peaks
+    plt.plot(valleys_ind, time_series[valleys_ind], 'o',markersize=10,linestyle='dashed',color='red',markerfacecolor='green',label="valley Resistance or local min or SCL")  # For Valleys
+    plt.plot(np.zeros_like(time_series), "--", color="yellow",markersize=10,linewidth=2.5)
+    # Find Peak prominences
+    promin=peak_prominences(time_series,peaks)[0]
+    contur_height=time_series[peaks]-promin
+    plt.vlines(x=peaks,ymin=contur_height,ymax=time_series[peaks],color="purple",linewidth=2.5)
+    # peak_width => for half recovery
+    '''
+    results_half = peak_widths(time_series, peaks, rel_height=0.5)
+    results_half[0]
+    plt.hlines(*results_half[1:], color="black",linewidth=2.5,linestyle='dashed')'''
+    #peak width for full recovery
+    results_full = peak_widths(time_series, peaks, rel_height=1)
+    results_full[0]  # widths
+    plt.hlines(*results_full[1:], color="green",linewidth=2,linestyle='dashed')
+
+    plt.title("Skin Resistance vs Time ")
+    plt.xlabel("Time")
+    plt.ylabel("Skin Resistance = kΩ")
+    plt.legend()
+    plt.show()
+    pass
 
 
 def main():
     path = sys.argv[1]
     sheet_no=sys.argv[2]
     data = pd.read_excel(path,sheet_name= int(sheet_no))
-    print(data)
+    #print(data)
     data=data.fillna(0)
     print(data)
-    line_graph_plot(data)
-    histogram_plot(data)
+    #line_graph_plot(data)
+    #histogram_plot(data)
     Statistical_Analysis(data)
-   
+    min_sec_to_Seconds(data)
+    line_graph_plot(data)
+    peaks_valleys(data)
+    histogram_plot(data)
+    print("\n Description of data = \n",data.describe())
+    skewness_Kurtosis(data)
+    #data.boxplot(by ='GSR_diff', column =['Time_Diff'], grid = False)
+    #plt.show()
+    #print("\n Correlation matrix = \n",data.corr())
+    #print("Skewness measure = \n",data.skew(axis=0, skipna=True, level=None, numeric_only=True))
+    #result = data.kurtosis(skipna = True,numeric_only=True)
+    #print("\n kurtosis measure =\n")
+    #print(result)
 
 
 main()
