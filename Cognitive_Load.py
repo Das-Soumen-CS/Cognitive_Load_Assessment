@@ -19,15 +19,31 @@ import plotly.graph_objects as go
 time_list=[]
 
 def line_graph_plot(data):
-    
-    line_graph=data.plot.line(title ="GSR_Responce" ,
-    x ='Time  min:ss',y='GSR Value',
-    figsize=(20,5),grid =True ,subplots=True ,color="green")
+    # resistivity Plot
+    data.plot.line(title ="GSR_Responce" ,x ='Time  min:ss',y='GSR Value',figsize=(20,5),grid =True ,subplots=True ,color="green",label = "resistivity")
     plt.grid(color = 'purple')
     plt.title("Skin Resistance vs Time ")
     plt.xlabel("Time")
     plt.ylabel("Skin Resistance = kΩ")
     plt.show()
+    #Conductivity Plot
+    data.plot.line(title ="GSR_Responce" ,x ='Time  min:ss',y='conductivity',figsize=(20,5),grid =True ,subplots=True ,color="blue",label = "conductivity")
+    plt.grid(color = 'purple')
+    plt.title("Skin Conductance vs Time ")
+    plt.xlabel("Time")
+    plt.ylabel("Skin Conductance = μS")
+    plt.show()
+    # Joint Figure Comaprision Resistivity and Conductivity
+    plt.plot(data['Time  min:ss'],data['GSR Value'],color="green",label = "Resistivity",linewidth=2.5)
+    plt.plot(data['Time  min:ss'],data['conductivity'],color="blue",label = "Conductivity",linewidth=2.5)
+    plt.grid(color = 'purple')
+    plt.legend()
+    plt.title("GSR Responce vs Time ")
+    plt.xlabel("Time")
+    plt.ylabel("GSR Responce")
+    plt.show()
+
+
 
 def histogram_plot(data):
     # Creating dataset
@@ -138,6 +154,7 @@ def Statistical_Analysis(data):
     data["GSR_diff"]=data["GSR_diff"].fillna(0)
     print("Replace NAN by 0= \n",data)
 
+    
     #data["Time_diff"]= data["Time Seconds"].diff()
     #print("Append Time_Diff =\n",data,"\n")
     #data["Time_diff"]=data["Time_diff"].fillna(0)
@@ -188,15 +205,12 @@ def min_sec_to_Seconds(data):
     print("Replace NAN by 0= \n",data)
     pass
 
-def  skewness_Kurtosis(data):
+def skewness_Kurtosis(data):
     data.boxplot(by ='GSR_diff', column =['Time_Diff'], grid = False)
     plt.show()
     print("\n Correlation matrix = \n",data.corr())
     result= data.drop(['Color'],axis=1) 
-    #print("HIIIII",result)
     for i in result:
-        #print(i)
-        #print(skew(result[i]))
         plt.figure()
         sns.histplot(result[i],kde=True)
         plt.show()
@@ -211,14 +225,25 @@ def  skewness_Kurtosis(data):
 
 def peaks_valleys(data):
     time_series = data['GSR Value']
-    # Find local maxima and local minima
-    #peaks = find_peaks(time_series, threshold=0)[0]
+    #Peak Finding
     peaks = argrelextrema(time_series.to_numpy(), np.greater) # local maxima
     peaks = peaks[0]
-
+    print("Peaks are =\n",time_series[peaks],'\n')
+    # Vallyes Finding
     valleys_ind = argrelextrema(time_series.to_numpy(), np.less) # Local minima
     valleys_ind = valleys_ind[0]
-    
+    print("vallyes are = \n",time_series[valleys_ind],'\n')
+    # mean of Peaks
+    mean_peaks= time_series[peaks].mean(skipna = False)
+    print("Mean Peaks = ",mean_peaks,"\n")
+    data['Mean peaks-GSR Value'] = mean_peaks- data['GSR Value']
+    print("\nDeviation From Mean Peaks = :\n", data)
+    # Mean of Vallyes
+    mean_vallyes= time_series[valleys_ind].mean(skipna = False)
+    print("Mean vallyes = ",mean_vallyes,"\n")
+    data['Mean Vallyes-GSR Value'] = (mean_vallyes- data['GSR Value'])
+    print("\n Deviation From Mean Vallyes = :\n", data)
+    #Plot figure
     plt.rcParams["figure.figsize"] = (20,5.5)
     plt.plot(time_series,linewidth=2.5,color="black",label="raw GSR data(kΩ)")
     plt.grid(color = 'purple')
@@ -254,8 +279,15 @@ def main():
     #print(data)
     data=data.fillna(0)
     print(data)
-    #line_graph_plot(data)
-    #histogram_plot(data)
+    data.head(30).boxplot(by='Time  min:ss',column=['GSR Value'], widths=0.5,grid = False,rot=90)
+    plt.show()
+    data.boxplot(by='Color', grid = False)
+    plt.show()
+    #Measure Conductivity
+    conductivity=1000/data["GSR Value"]
+    data["conductivity"]=conductivity
+    data["conductivity_diff"]= data["conductivity"].diff().fillna(0)
+
     Statistical_Analysis(data)
     min_sec_to_Seconds(data)
     line_graph_plot(data)
@@ -263,14 +295,7 @@ def main():
     histogram_plot(data)
     print("\n Description of data = \n",data.describe())
     skewness_Kurtosis(data)
-    #data.boxplot(by ='GSR_diff', column =['Time_Diff'], grid = False)
-    #plt.show()
-    #print("\n Correlation matrix = \n",data.corr())
-    #print("Skewness measure = \n",data.skew(axis=0, skipna=True, level=None, numeric_only=True))
-    #result = data.kurtosis(skipna = True,numeric_only=True)
-    #print("\n kurtosis measure =\n")
-    #print(result)
-
+    
 
 main()
 
