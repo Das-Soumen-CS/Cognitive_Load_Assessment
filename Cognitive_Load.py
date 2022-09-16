@@ -9,6 +9,7 @@ import matplotlib.pyplot as plt
 from matplotlib import colors
 from matplotlib.ticker import PercentFormatter
 import sys
+import os
 import math 
 import seaborn as sns
 from scipy.stats import skew
@@ -21,17 +22,21 @@ time_list=[]
 def line_graph_plot(data):
     # resistivity Plot
     data.plot.line(title ="GSR_Responce" ,x ='Time  min:ss',y='GSR Value',figsize=(20,5),grid =True ,subplots=True ,color="green",label = "resistivity")
+    plt.legend()
     plt.grid(color = 'purple')
     plt.title("Skin Resistance vs Time ")
     plt.xlabel("Time")
     plt.ylabel("Skin Resistance = kΩ")
+    plt.grid(color = 'purple')
     plt.show()
     #Conductivity Plot
     data.plot.line(title ="GSR_Responce" ,x ='Time  min:ss',y='conductivity',figsize=(20,5),grid =True ,subplots=True ,color="blue",label = "conductivity")
+    plt.legend() 
     plt.grid(color = 'purple')
     plt.title("Skin Conductance vs Time ")
     plt.xlabel("Time")
     plt.ylabel("Skin Conductance = μS")
+    plt.grid(color = 'purple')
     plt.show()
     # Joint Figure Comaprision Resistivity and Conductivity
     plt.plot(data['Time  min:ss'],data['GSR Value'],color="green",label = "Resistivity",linewidth=2.5)
@@ -42,27 +47,20 @@ def line_graph_plot(data):
     plt.xlabel("Time")
     plt.ylabel("GSR Responce")
     plt.show()
-
-
+    pass
 
 def histogram_plot(data):
     # Creating dataset
     np.random.seed(23685752)
     N_points = 10000
     n_bins = 20
-    
     # Creating distribution
     #x = data['Time  min:ss']
     x = data['Time_Seconds']
     y = data['GSR Value']
-
     legend = ['GSR Value Distribution']
-    
     # Creating histogram
-    fig, axs = plt.subplots(1, 1,
-                            figsize =(10, 7),
-                            tight_layout = True)
-    
+    fig, axs = plt.subplots(1, 1,figsize =(10, 7),tight_layout = True)
     
     # Remove axes splines
     for s in ['top', 'bottom', 'left', 'right']:
@@ -77,17 +75,10 @@ def histogram_plot(data):
     axs.yaxis.set_tick_params(pad = 10)
     
     # Add x, y gridlines
-    axs.grid(visible = True, color ='grey',
-            linestyle ='-.', linewidth = 0.5,
-            alpha = 0.6)
+    axs.grid(visible = True, color ='grey',linestyle ='-.', linewidth = 0.5,alpha = 0.6)
     
     # Add Text watermark
-    fig.text(0.9, 0.15, 'Id_1',
-            fontsize = 12,
-            color ='red',
-            ha ='right',
-            va ='bottom',
-            alpha = 0.7)
+    fig.text(0.9, 0.15, 'Id_1',fontsize = 12,color ='red',ha ='right',va ='bottom',alpha = 0.7)
     
     # Creating histogram
     N, bins, patches = axs.hist(x, bins = n_bins)
@@ -114,9 +105,9 @@ def histogram_plot(data):
     plt.legend(legend)
     plt.title('GSR vs Time')
     plt.show()
+    pass
 
 def Statistical_Analysis(data):
-
     gsr_min=data["GSR Value"].min(skipna=True)
     gsr_max=data["GSR Value"].max(skipna=True)
     print("Max GSR/ Max Relax =",gsr_max,"\n")
@@ -154,7 +145,6 @@ def Statistical_Analysis(data):
     data["GSR_diff"]=data["GSR_diff"].fillna(0)
     print("Replace NAN by 0= \n",data)
 
-    
     #data["Time_diff"]= data["Time Seconds"].diff()
     #print("Append Time_Diff =\n",data,"\n")
     #data["Time_diff"]=data["Time_diff"].fillna(0)
@@ -167,23 +157,23 @@ def Statistical_Analysis(data):
     # Function Call
     Load_wrt_Mean(mean_gsr,gsr_min)
     Load_wrt_Initial_GSR(gsr_min,gsr_start)
-
+    pass
     #print("Description of data = \n",data.describe())
     
-
-
 def Load_wrt_Mean(mean_gsr,gsr_min):
     load_score={(mean_gsr-gsr_min)/mean_gsr}  # Here I have used {} => set , need to convert lo list =>then pick first element
     print(type(load_score))
     print('Load Score= ',load_score)
     load_normalized_score=list(load_score)
     print("Load Normalized score wrt Mean_GSR= ",load_normalized_score[0]*100,"\n")
+    pass
 
 def Load_wrt_Initial_GSR(Max_load,Initial_gsr):
     load_score=(Max_load-Initial_gsr)/Initial_gsr
     print(type(load_score))
     print('Load Score= ',load_score)
     print("Load Normalized score wrt Initial Load= ",load_score*100,"\n")
+    pass
     
 
 def min_sec_to_Seconds(data):
@@ -263,7 +253,6 @@ def peaks_valleys(data):
     results_full = peak_widths(time_series, peaks, rel_height=1)
     results_full[0]  # widths
     plt.hlines(*results_full[1:], color="green",linewidth=2,linestyle='dashed')
-
     plt.title("Skin Resistance vs Time ")
     plt.xlabel("Time")
     plt.ylabel("Skin Resistance = kΩ")
@@ -287,7 +276,7 @@ def main():
     conductivity=1000/data["GSR Value"]
     data["conductivity"]=conductivity
     data["conductivity_diff"]= data["conductivity"].diff().fillna(0)
-
+    # Function call of different functions 
     Statistical_Analysis(data)
     min_sec_to_Seconds(data)
     line_graph_plot(data)
@@ -295,7 +284,17 @@ def main():
     histogram_plot(data)
     print("\n Description of data = \n",data.describe())
     skewness_Kurtosis(data)
-    
+    # Finally Create an Excel Sheet with same file name to the same directory
+    prefix=os.path.basename(path)
+    prefix=os.path.splitext(prefix)[0]
+    if (int(sys.argv[2])==0):
+        status="with_out_Task"
+        data.to_excel('./'+prefix+status+'_Cognitive_load.xlsx')
+    elif(int(sys.argv[2])==1):
+        status="with_task"
+        data.to_excel('./'+prefix+status+'_Cognitive_load.xlsx')
+    else:
+        print("Please press either { 0 =for without Task } ,or {1= for with task}")
 
 main()
 
