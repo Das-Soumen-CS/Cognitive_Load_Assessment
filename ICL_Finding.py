@@ -8,10 +8,25 @@ from scipy.signal import find_peaks ,peak_prominences ,argrelextrema,peak_widths
 import scipy.stats as stats
 
 def intrinsic_cog_load(data_final):
-    temp_df = data_final[data_final['BaseLine Deviation'] > 0]
-    print('\n Data after BaseLine filtering =:\n', temp_df )
-    temp_df=temp_df.loc[temp_df['Color'].isin(['yellow', 'R1', 'R2','R3','R4','R5'])& (temp_df['Rank_1'] <len(temp_df['Rank_1']))]
-    print('\n Data consisting moderate/high load :\n', temp_df )
+    data_final = data_final[data_final['BaseLine Deviation'] > 0]
+    print('\n Data after BaseLine filtering =:\n',data_final)
+    data_final=data_final.loc[data_final['Color'].isin(['yellow', 'R1', 'R2','R3','R4','R5'])& (data_final['Rank_1'] <len(data_final['Rank_1']))]
+    print('\n Data consisting moderate/high load :\n', data_final)
+    # Filter data where time >= 15.00 min
+    data_final.loc[:,:]=data_final.query("`Time  min:ss` >= 15.00 ")
+    #data_final=temp_df  
+    #Re_Rank The Filter Data
+    data_final["Rank_1"] = data_final["Normalized_Score_1"].rank(ascending=False)
+    data_final["Rank_2"] = data_final["Normalized_Score_2"].rank(ascending=True)
+    data_final["Rank_3"] = data_final["Normalized_Score_3"].rank(ascending=False)
+    data_final["Rank_4"] = data_final["BaseLine Deviation"].rank(ascending=False)
+    #print("After Re_ranking =\n",data_final)
+    # Filter data where color range R1-R5 ,exclude yellow
+    data_final=data_final.loc[data_final['Color'].isin([ 'R1', 'R2','R3','R4','R5'])& (data_final['Rank_1'] <len(data_final['Rank_1']))]
+    #print('\n Data consisting high load :\n', data_final.iloc[ :,4:] )
+    df=data_final.drop(['GSR Value', 'conductivity'], axis=1)
+    print('\n Data consisting high load :\n', df )
+    print("\n Current Dimension=",data_final.shape)
     pass
 
 def peaks_valleys(data):
@@ -82,7 +97,7 @@ def normalized_score(data):
     conductivity=1000/data["GSR Value"]
     data["conductivity"]=conductivity
     mean_conductivity= data["conductivity"].mean(skipna = False)
-    print(data)
+    #print(data)
     print("Mean conductivity = ",mean_conductivity,"\n")
     std_gsr=data["conductivity"].std(skipna=True)
     print("Standard Deviation of Conductivity =",std_gsr,"\n")
@@ -98,9 +113,8 @@ def normalized_score(data):
     norm_3=(conductivity - mean_conductivity)-zscores
     data["Normalized_Score_3"]=norm_3
     data["Rank_3"] = data["Normalized_Score_3"].rank(ascending=False)
-     # Normalization_version_4
+    # Normalization_version_4
     print(data)
-   
     pass
 
 
