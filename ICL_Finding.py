@@ -14,13 +14,14 @@ def intrinsic_cog_load(data_final):
     print('\n Data consisting moderate/high load :\n', data_final)
     # Filter data where time >= 15.00 min
     data_final.loc[:,:]=data_final.query("`Time  min:ss` >= 15.00 ")
-    #data_final=temp_df  
+    print("Extract data after 15 min =\n",data_final)
     #Re_Rank The Filter Data
     data_final["Rank_1"] = data_final["Normalized_Score_1"].rank(ascending=False)
     data_final["Rank_2"] = data_final["Normalized_Score_2"].rank(ascending=True)
     data_final["Rank_3"] = data_final["Normalized_Score_3"].rank(ascending=False)
     data_final["Rank_4"] = data_final["BaseLine Deviation"].rank(ascending=False)
-    #print("After Re_ranking =\n",data_final)
+    print("After Re_ranking =\n",data_final)
+
     # Filter data where color range R1-R5 ,exclude yellow
     data_final=data_final.loc[data_final['Color'].isin([ 'R1', 'R2','R3','R4','R5'])& (data_final['Rank_1'] <len(data_final['Rank_1']))]
     #print('\n Data consisting high load :\n', data_final.iloc[ :,4:] )
@@ -30,7 +31,7 @@ def intrinsic_cog_load(data_final):
     pass
 
 def peaks_valleys(data):
-    normalized_score(data)
+    #normalized_score(data)
     time_series = data['GSR Value']
     #Peak Finding
     peaks = argrelextrema(time_series.to_numpy(), np.greater) # local maxima
@@ -56,12 +57,15 @@ def peaks_valleys(data):
     #data['Mean vallyes'] = mean_vallyes
     data['Mean Vallyes-GSR Value'] = (mean_vallyes- data['GSR Value'])
     print("\n Deviation From Mean Vallyes = :\n", data)
-
-    data['BaseLine Deviation'] = ((1000/data["GSR Value"])-mean_vallyes_conductivity)
+    #Function Call
+    normalized_score(data)
+    #Compute deviations of ecah conductivity value from mean of vallyes
+    data['BaseLine Deviation'] = (((1000/data["GSR Value"])-mean_vallyes_conductivity)/mean_vallyes_conductivity)*100
     data["Rank_4"] = data["BaseLine Deviation"].rank(ascending=False)
+    #Compute P value from Z-Score
+    p_value = stats.norm.sf(abs(data["Normalized_Score_1"]))
+    data["P_Value"] = p_value *100
     print("\n BaseLine Deviation= :\n", data)
-   
-
     #Plot figure
     plt.rcParams["figure.figsize"] = (20,5.5)
     plt.plot(time_series,linewidth=2.5,color="black",label="raw GSR data(kΩ)")
@@ -86,8 +90,20 @@ def peaks_valleys(data):
     plt.xlabel("Time")
     plt.ylabel("Skin Resistance = kΩ")
     plt.legend()
+    plt.show() 
+    #Correlation among Rank 1 ,Rank 2 ,Rnak 3, Rnak 4 , P value
+    df_corr_find=data.drop(['GSR Value', 'conductivity','Time  min:ss','Color','Mean peaks-GSR Value','Mean Vallyes-GSR Value'], axis=1)
+    sns.heatmap(df_corr_find.corr(), annot = True, fmt='.3g',cmap= 'Set3',linewidths=.50)
     plt.show()
-    #sns.heatmap(data[['Mean peaks-GSR Value','Mean Vallyes-GSR Value','GSR Value']].corr(), cmap='RdBu',vmin=-1, vmax=1, linewidth=0.5, annot=True,annot_kws={'fontsize':11, 'fontweight':'bold'},square=True)
+    # Correlation among Ranks and P value only
+    df_corr_find=data.drop(['GSR Value', 'conductivity','Time  min:ss','Color','Mean peaks-GSR Value','Mean Vallyes-GSR Value','Normalized_Score_1', 'Normalized_Score_2','Normalized_Score_3','BaseLine Deviation'], axis=1)
+    sns.heatmap(df_corr_find.corr(), annot = True, fmt='.3g',cmap= 'Set2',linewidths=.50)
+    plt.show()
+    # Co rrelation among Normalized Values and P value only
+    df_corr_find=data.drop(['GSR Value', 'conductivity','Time  min:ss','Color','Mean peaks-GSR Value','Mean Vallyes-GSR Value','Rank_1', 'Rank_2','Rank_3','Rank_4'], axis=1)
+    sns.heatmap(df_corr_find.corr(), annot = True, fmt='.3g',cmap= 'Set2',linewidths=.50)
+    plt.show()
+    # Function Call
     intrinsic_cog_load(data)
     pass
 
@@ -110,9 +126,11 @@ def normalized_score(data):
     data["Normalized_Score_2"]=tscores
     data["Rank_2"] = data["Normalized_Score_2"].rank(ascending=True)
     #Normalization version 3 
-    norm_3=(conductivity - mean_conductivity)-zscores
-    data["Normalized_Score_3"]=norm_3
+    #norm_3=(conductivity - mean_conductivity)-zscores
+    norm_3=(conductivity - mean_conductivity)/mean_conductivity
+    data["Normalized_Score_3"]=norm_3*100
     data["Rank_3"] = data["Normalized_Score_3"].rank(ascending=False)
+    #data["P_Value"] = data["P_Value"].rank(ascending=False)
     # Normalization_version_4
     print(data)
     pass
